@@ -20,6 +20,17 @@ An application-independent toolkit and methodology for migrating Base44 applicat
 - `examples/perspectives/MIGRATION_LEDGER.md` — the phase-by-phase migration log with commit references. Append new phases; do not rewrite history that already happened.
 - `examples/perspectives/OPEN_DECISIONS.md` — unresolved questions that block later phases. Do not resolve these unilaterally; they require the product owner's explicit confirmation.
 
+## Permanent credential-handling rules (application-independent, do not remove or weaken)
+
+These apply to any migration this toolkit is ever used for, not just PERSPECTIVES, following a real incident where a routine diagnostic command printed a live credential into a session transcript:
+
+- Never run a credential-helper, Keychain, or secret-store lookup as a diagnostic or troubleshooting step, for any platform's CLI.
+- Never enumerate or print environment variables as a diagnostic step.
+- Never read a populated `.env`, `.env.local`, or similar file.
+- Never read, request, print, log, or commit a database credential, API key, access token, or connection string containing credentials.
+- If a required CLI or authentication is unavailable, stop and report exactly that — do not probe for an alternate way to recover or work around missing credentials.
+- Never connect a coding agent directly to a live production database. Live database facts are gathered only via a read-only query that a human runs manually and exports for the agent to read — see `docs/LIVE_SUPABASE_SCHEMA_CAPTURE.md` for the full method.
+
 ## Current status
 
-MIG-000 governance and PERSPECTIVES reference documentation only. No generic migration scripts, validators, or templates exist yet.
+MIG-000 and MIG-001 governance and PERSPECTIVES reference documentation. The generic live-schema-capture method (`docs/LIVE_SUPABASE_SCHEMA_CAPTURE.md`) now exists and is application-independent. No other generic migration scripts, validators, or templates exist yet.

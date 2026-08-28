@@ -30,11 +30,13 @@ This playbook treats the Base44 app as a **specification**, not as code to port 
 
 ## Reusable checklist for a schema/grants reconciliation phase
 
-- [ ] Treat the live database (once inspected) as canonical over any planning document.
-- [ ] Capture the live schema in full — tables, columns, types, constraints, indexes, extensions, functions, triggers, generated columns, and existing access-control state — before writing new migration files.
+- [ ] Treat the live database (once inspected) as canonical over any planning document **for factual, already-existing state** — but do not let that same evidence silently settle a product decision that hasn't actually been made yet. "It already works this way" and "it should keep working this way" are different claims.
+- [ ] Capture the live schema in full — tables, columns, types, constraints, indexes, extensions, functions, triggers, generated columns, RLS status/policies, and existing access-control state — before writing new migration files. Use the credential-free, read-only capture method in [`LIVE_SUPABASE_SCHEMA_CAPTURE.md`](LIVE_SUPABASE_SCHEMA_CAPTURE.md): a human runs one catalogue-only query by hand and exports the result; the coding agent never connects to the database directly.
 - [ ] Rebuild access-grant scripts (e.g. public API read grants) against the live table set, never against a planning document's older table list.
-- [ ] Explicitly resolve, or explicitly record as still-open, any table whose intended access level is ambiguous or contested across planning documents.
-- [ ] Never execute state-changing SQL against a live database without a separate, explicit authorisation step distinct from the inspection step.
+- [ ] Explicitly resolve, or explicitly record as still-open, any table whose intended access level is ambiguous or contested across planning documents. When a live RLS policy or grant already implements one side of a documented conflict, present that as evidence for a human decision — do not treat "it's already configured this way" as the decision itself.
+- [ ] Keep schema-shape SQL and access-grant SQL in separate files — they get reviewed and executed on different timelines by different people.
+- [ ] Never execute state-changing SQL against a live database without a separate, explicit authorisation step distinct from the inspection step. Guard any drafted DDL/grant SQL against accidental execution (e.g. a `RAISE EXCEPTION` guard block) until that separate authorisation exists.
+- [ ] Keep capture, baseline generation, replay validation, and production execution as four distinct steps — never assume a baseline "works" until it has actually been replay-tested against a disposable database, and say so explicitly wherever the baseline is referenced.
 
 ## Lessons log
 
@@ -42,3 +44,6 @@ Lessons and reusable patterns are appended here as they're learned from the PERS
 
 - **MIG-000:** Planning documents can be relocated or go temporarily missing between sessions; a bootstrap phase should verify the exact path of every canonical document before reading, and should stop and report rather than substituting a stale document when a canonical one is absent — but should also accept a corrected path from the user rather than treating relocation as a repository-boundary violation.
 - **MIG-000:** A prior audit's counts (entities, functions, components) can go stale as a prototype keeps evolving after the audit was written. Always re-verify counts directly from the repository at bootstrap time rather than propagating a remembered number.
+- **MIG-000A:** A routine "check whether an alternate auth path exists" diagnostic can itself leak a live credential (e.g. a credential-helper lookup printing a stored OAuth token to command output). The safe default is to never run credential-helper or Keychain-style lookups at all, even as a read-only diagnostic — if a tool isn't already authenticated, stop and say so instead of probing for how it's authenticated elsewhere.
+- **MIG-001:** A live database's actual grant/RLS configuration can directly resolve a documented "which of these two behaviours is correct" conflict — but can also surface a *new* conflict nobody had written down (e.g. a table's live RLS policy shape matching a different category of table than expected). Both are worth surfacing explicitly rather than only checking off the conflicts that were already anticipated.
+- **MIG-001:** Reconstructing DDL from `information_schema` alone has real gaps — e.g. a `vector` extension column's dimension isn't exposed the way a `varchar`'s length is. Flag such gaps explicitly in the baseline rather than filling them in from a planning document's assumption.
