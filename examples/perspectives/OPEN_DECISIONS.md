@@ -26,7 +26,8 @@ Preserved conflicts and unresolved questions carried forward from the planning d
 
 - The live capture confirms `articles.embedding` is an `extensions.vector` column, but `information_schema.columns` does not expose the vector's dimension (typmod) the way it exposes a `varchar`'s length.
 - The planning documents assume 1536 dimensions (OpenAI `text-embedding-3-small`), but this has **not** been verified against the live catalogue.
-- **Gate:** confirm the true live dimension (e.g. via `\d+ public.articles` in the SQL Editor, or a follow-up targeted capture of `pg_attribute.atttypmod`) before any embedding-writing code is built or before the baseline is replay-validated.
+- **Gate:** confirm the true live dimension (e.g. via `\d+ public.articles` in the SQL Editor, or a follow-up targeted capture of `pg_attribute.atttypmod`) before any embedding-writing code is built.
+- **MIG-002 update:** the baseline has since been replay-validated locally (full success) — but replay validates the DDL's *syntax* (`extensions.vector` with no dimension parameter, since none was ever recoverable), not the live column's actual dimension. This item remains open and unverified; local replay success must not be read as resolving it.
 
 ## Resolved
 
@@ -35,7 +36,8 @@ Preserved conflicts and unresolved questions carried forward from the planning d
 - **Original conflict:** one handover statement described authenticated `SELECT` access; the execution runbook's grant procedure treated it as worker-only.
 - **Live evidence at decision time:** the live database already had an RLS policy (`processing_log_authenticated_read`) permitting authenticated `SELECT` — the same policy shape used on the six agreed public-read tables, not the deny-all shape used on the other two worker-only tables. This evidence pointed toward the table already being configured for authenticated access, i.e. toward the *other* option.
 - **Decision (Maz, during MIG-001):** worker-only. Chosen deliberately notwithstanding the live evidence above, because the table holds internal pipeline processing records rather than reader-facing content.
-- **Required follow-up (not yet done, needs a later separately-authorised phase):** the live RLS policy `processing_log_authenticated_read` predates this decision and must eventually be dropped for full hygiene. The proposed grant SQL (`Perspectives-worker/supabase/grants/20260821_PROPOSED_DATA_API_GRANTS.sql`) revokes the table-level grant, which is sufficient to make the table unreachable via the Data API immediately once that file is executed — independent of when the stale policy itself is removed.
+- **Required follow-up (not yet done, needs a later separately-authorised phase):** the live RLS policy `processing_log_authenticated_read` predates this decision and must eventually be dropped for full hygiene — this remains **OPEN FOR LATER CLEANUP**, not resolved by MIG-002. The proposed grant SQL (`Perspectives-worker/supabase/grants/20260821_PROPOSED_DATA_API_GRANTS.sql`, reviewed and locally rehearsed in MIG-002 as `MIG002_REVIEWED_GRANT_PLAN.sql`) revokes the table-level grant, which is sufficient to make the table unreachable via the Data API immediately once that file is executed — independent of when the stale policy itself is removed.
+- **MIG-002 empirical confirmation:** locally replayed the exact live scenario (grant present + policy present → authenticated could read the table; grant revoked + policy left completely untouched → authenticated got a hard permission-denied error). This proves the revoke-alone approach actually works as intended, not merely in theory.
 
 ### 6. V1 anonymous read access to reader-facing tables — RESOLVED: no anon reads
 

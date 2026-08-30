@@ -26,8 +26,26 @@ Phase-by-phase record of the PERSPECTIVES migration. Append new phases as they h
   - Stage B: `b0e6fa58877b964dfe985404e0672147504f9b87` — `chore: capture and reconcile live Supabase schema`
 - **`Base44-to-standalone` MIG-001 commit:** recorded in the containing commit that added this ledger update, on branch `audit/mig-001-live-schema` of this repository.
 - **Mid-phase incident:** during the preceding MIG-000A review/merge phase (not MIG-001 itself), a diagnostic credential-helper lookup printed a live GitHub OAuth token into a session transcript. The token was revoked and replaced before MIG-001 began; MIG-001 operated under a permanent, standing prohibition on credential-helper/Keychain/environment-variable inspection as a result (see AGENTS.md in every repository).
-- **Next phase:** unassigned until MIG-001's findings are reviewed. Proposed candidate: **MIG-002 — Local Baseline Replay Validation and Reviewed Grant Execution Planning** (must remain separately authorised; must not execute grant changes against production without further explicit authorisation).
+## MIG-002 — Local Baseline Replay Validation and Reviewed Grant Execution Planning
+
+- **Status:** Complete (both repository branches committed and pushed; neither merged — stacked on the still-open, still-unmerged MIG-001 branches/PRs in each repo).
+- **Scope actually performed:**
+  - Installed a local, credential-free, Supabase-faithful replay environment (Colima + the official Supabase CLI local development stack) after stating exactly what would be installed and why; no production connection, login, or project link at any point.
+  - Replayed the MIG-001 existing-state baseline against the disposable local stack: **full success, zero errors, no correction needed.**
+  - Structurally compared the live capture against a fresh local capture (using the identical committed capture query): **220 of 223 comparisons exact match**; the remaining 3 are expected environment noise (extension patch version, platform-internal schema names) plus the pre-existing, still-open embedding-dimension limitation.
+  - Corrected a documentation imprecision from MIG-001: the capture query returns exactly **26** top-level JSON keys (not "24" as MIG-001's prose said in places) — a prose-only correction, no MIG-001 file altered.
+  - Built a deterministic, evidence-cited 33-row target access matrix (11 tables × 3 roles) and locally rehearsed the reviewed grant plan: **exact match to target, idempotent (verified by double-application), and reversible (verified rollback in both directions).**
+  - Empirically proved, with a live before/after test against the local replica, that the residual `article_processing_log` RLS policy alone cannot grant Data API access once the underlying table privilege is revoked — confirming the worker-only decision is enforceable today via the grant alone, independent of when the stale policy itself is eventually removed.
+  - Produced a review-only production execution plan (pre-requisites, sequence, explicit abort conditions) — not executed, not authorising execution.
+  - Documented the reusable, application-independent replay/rehearsal method in this toolkit (`docs/LOCAL_SUPABASE_REPLAY_AND_GRANT_REHEARSAL.md`).
+  - **Live mutation: none.** **Baseline replay validation: complete (PASS).** **Grant execution: still pending — requires a further, separately authorised phase.**
+- **`Perspectives-worker` MIG-002 commits** (branch `audit/mig-002-local-replay`, based on `audit/mig-001-live-schema`):
+  - `083a6309cb215bdaf90f30786b7ce1aa0c143a75` — "MIG-002 local baseline replay and schema comparison"
+  - `cba58025bd0e0b691dfe3881925a7f9b87cb0e77` — "MIG-002 grant/rollback rehearsal, execution planning and final verification"
+  - Stacked PR: `Perspectives-worker` #3, base `audit/mig-001-live-schema`, explicitly dependent on the still-unmerged MIG-001 PR #2.
+- **`Base44-to-standalone` MIG-002 commit:** recorded in the containing commit that added this ledger update, on branch `audit/mig-002-local-replay` of this repository (stacked on `audit/mig-001-live-schema`).
+- **Next phase:** unassigned until MIG-002's findings are reviewed. Proposed candidate remains a reviewed **production grant execution phase**, gated on the pre-requisites in `Perspectives-worker/docs/MIG002_PRODUCTION_EXECUTION_PLAN.md` (fresh live capture, drift check, explicit separate authorisation, approved SQL hash, rollback readiness) — must not execute anything against production without that separate authorisation.
 
 ## Later phases
 
-UNASSIGNED — not yet numbered or scoped beyond the MIG-002 candidate named above. Expected to include (at minimum, order and numbering to be assigned when authorised): local baseline replay validation, reviewed grant execution, Python worker build-out (Phase 2 in the planning documents), frontend rebuild (Phase 3), and production deployment/automation (Phase 4+). Do not assume any of these have started.
+UNASSIGNED. Expected to include (at minimum, order and numbering to be assigned when authorised): reviewed production grant execution, residual `article_processing_log` RLS policy cleanup, live verification of the `articles.embedding` vector dimension, Python worker build-out (Phase 2 in the planning documents), frontend rebuild (Phase 3), and production deployment/automation (Phase 4+). Do not assume any of these have started.
