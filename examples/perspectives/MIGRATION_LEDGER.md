@@ -26,6 +26,7 @@ Phase-by-phase record of the PERSPECTIVES migration. Append new phases as they h
   - Stage B: `b0e6fa58877b964dfe985404e0672147504f9b87` — `chore: capture and reconcile live Supabase schema`
 - **`Base44-to-standalone` MIG-001 commit:** recorded in the containing commit that added this ledger update, on branch `audit/mig-001-live-schema` of this repository.
 - **Mid-phase incident:** during the preceding MIG-000A review/merge phase (not MIG-001 itself), a diagnostic credential-helper lookup printed a live GitHub OAuth token into a session transcript. The token was revoked and replaced before MIG-001 began; MIG-001 operated under a permanent, standing prohibition on credential-helper/Keychain/environment-variable inspection as a result (see AGENTS.md in every repository).
+
 ## MIG-002 — Local Baseline Replay Validation and Reviewed Grant Execution Planning
 
 - **Status:** Complete (both repository branches committed and pushed; neither merged — stacked on the still-open, still-unmerged MIG-001 branches/PRs in each repo).
@@ -46,6 +47,23 @@ Phase-by-phase record of the PERSPECTIVES migration. Append new phases as they h
 - **`Base44-to-standalone` MIG-002 commit:** recorded in the containing commit that added this ledger update, on branch `audit/mig-002-local-replay` of this repository (stacked on `audit/mig-001-live-schema`).
 - **Next phase:** unassigned until MIG-002's findings are reviewed. Proposed candidate remains a reviewed **production grant execution phase**, gated on the pre-requisites in `Perspectives-worker/docs/MIG002_PRODUCTION_EXECUTION_PLAN.md` (fresh live capture, drift check, explicit separate authorisation, approved SQL hash, rollback readiness) — must not execute anything against production without that separate authorisation.
 
+## MIG-003 — Controlled Production Grant Execution and Independent Post-Execution Verification
+
+- **Status:** **MIG-003 production client-role grant transition: COMPLETE AND VERIFIED.**
+- **Scope actually performed:**
+  - Read-only preflight: independently re-verified all four repositories, both MIG-001 and MIG-002 pull requests (open, unmerged), and the exact SHA-256 of the reviewed grant and rollback artifacts. Zero drift found anywhere.
+  - Fresh, credential-free pre-execution capture (manual, by the project owner) compared against the MIG-001 historical capture: **225/225 exact matches, zero drift** — confirmed every MIG-002 target assumption still held against the live database before touching anything.
+  - The project owner executed the exact, unmodified MIG-002 reviewed grant plan (`Perspectives-worker/supabase/grants/MIG002_REVIEWED_GRANT_PLAN.sql`, SHA-256 `c1fb20bac47386f8e4402f66718db556f2f9a43100e6b6c92fe332e329088303`) manually in the live Supabase SQL Editor, bypassing only its execution guard in the editor's paste buffer — the committed file itself was never modified. Claude Code never connected to production, never held a production credential, and did not execute the SQL itself.
+  - Fresh post-execution capture (again manual) independently verified: **exact match to the target access matrix on all 22 (table, role) pairs**, **zero non-privilege structural change** across all 16 compared categories (tables, columns, constraints, indexes, triggers, functions, policies, RLS flags, and more), `service_role` fully unaffected, and the residual `article_processing_log` RLS policy confirmed still present and — as MIG-002 had already proven locally — inert without the now-revoked table grant.
+  - Rollback was not required and was not performed; every pass criterion was satisfied on the first check.
+  - **Live mutation: yes — the Data API grant/revoke transition only.** **Not resolved by this phase:** the residual `article_processing_log` RLS policy remains in place (cleanup requires separate authorisation); the `articles.embedding` live vector dimension remains unverified; no application behaviour was tested; nothing was deployed; the schema baseline itself has still never been applied to production.
+- **`Perspectives-worker` MIG-003 commits** (branch `audit/mig-003-production-grants`, based on `audit/mig-002-local-replay`):
+  - `449e3f63e73e4b30a9734b0a7c6ac13fac63fd4f` — "MIG-003: pre-execution verification and drift gate (GO)"
+  - `8f5cf521538ee3e911c73bc665a30788081a2ff9` — "MIG-003: record production grant execution and verification"
+  - Stacked PR: `Perspectives-worker` #4, base `audit/mig-002-local-replay`, explicitly dependent on the still-unmerged MIG-002 PR #3 (itself dependent on MIG-001 PR #2).
+- **`Base44-to-standalone` MIG-003 commit:** recorded in the containing commit that added this ledger update, on branch `audit/mig-003-production-grants` of this repository (stacked on `audit/mig-002-local-replay`).
+- **Next phase:** unassigned. Candidates include the residual `article_processing_log` RLS policy cleanup (separate authorisation required) and live verification of the `articles.embedding` vector dimension — neither is urgent, since the grant layer already enforces the intended access boundary regardless of the stale policy's presence.
+
 ## Later phases
 
-UNASSIGNED. Expected to include (at minimum, order and numbering to be assigned when authorised): reviewed production grant execution, residual `article_processing_log` RLS policy cleanup, live verification of the `articles.embedding` vector dimension, Python worker build-out (Phase 2 in the planning documents), frontend rebuild (Phase 3), and production deployment/automation (Phase 4+). Do not assume any of these have started.
+UNASSIGNED. Expected to include (at minimum, order and numbering to be assigned when authorised): residual `article_processing_log` RLS policy cleanup, live verification of the `articles.embedding` vector dimension, Python worker build-out (Phase 2 in the planning documents), frontend rebuild (Phase 3), and production deployment/automation (Phase 4+). Do not assume any of these have started.
